@@ -145,6 +145,10 @@ the operators involved and, for each, the evidence behind its registry entry or 
 The kernel's decisions and golden vectors are unchanged. Details and a worked example:
 [docs/decision-explanation.md](docs/decision-explanation.md), `examples/explained/`.
 
+## Known limit: relayed provenance
+
+Two golden vectors (56 in total) record a limit reported by James He on 30 Oct 2026. `provenance` is self-reported: an operator that relays another operator's evidence under its own provenance creates an apparent second root. Declared, the relay counts as one root (`relay_declared_one_root`); undeclared, it reaches *Verified Fact* (`relay_undeclared_known_limit`). The protocol cannot detect this; the kernel is unchanged and the vector keeps the limit visible. See GEVP Security Considerations (draft -12).
+
 ## v0.7 changes (from an external review)
 
 An external reviewer replayed v0.6.0 at commit 41a22510 in Python and Rust and reported four points; all four were confirmed and fixed.
