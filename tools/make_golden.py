@@ -188,6 +188,16 @@ REVIEW_CASES = [
     [ev(1,.9,"v1","A",key=None), ev(2,True,"v2","B",key=None)], False),
 ]
 
+# Known limit (GEVP Security Considerations): provenance is self-reported. v2
+# relays v1's evidence (same content hash). Declared, it merges into one root;
+# undeclared, it counts as a second root. Reported by James He, 2026-10-30.
+KNOWN_LIMIT_CASES = [
+ ("relay_declared_one_root", "Verified Fact", {},
+    [ev(1,.9,"v1","A"), ev(2,.9,"v2","A")], True),
+ ("relay_undeclared_known_limit", "Verified Fact", {},
+    [ev(1,.9,"v1","A"), ev(2,.9,"v2","B")], True),
+]
+
 def build_kernel(registry=None):
     k = VerifierKernel(registry)
     for b in load_bindings_from_dir(ROOT / "bindings"):
@@ -204,7 +214,7 @@ def main():
     registry = VerifierRegistry.from_bytes(reg_bytes, reg_sigs, TrustRoot.from_bytes(root_bytes))
     kernels = {True: build_kernel(registry), False: build_kernel()}
     vectors = []
-    for name, claim, ctx, evidence, use_registry in [(*c, True) for c in CASES] + SIG_CASES + FRESH_CASES + RES_CASES + REVIEW_CASES:
+    for name, claim, ctx, evidence, use_registry in [(*c, True) for c in CASES] + SIG_CASES + FRESH_CASES + RES_CASES + REVIEW_CASES + KNOWN_LIMIT_CASES:
         evidence = [finish_record(name, dict(e)) for e in evidence]
         req = VerificationRequest(
             artifact_id=name,
