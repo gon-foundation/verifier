@@ -2,5 +2,5 @@
 # (registry/POLICY.md §2). Enforced by the "main protection" ruleset
 # (require_code_owner_review). Second accounts are in team `contributors`
 # (Triage) and are deliberately not code owners.
-*           @gravit-open-network-foundation/maintainers
-/registry/  @gravit-open-network-foundation/maintainers
+*           @gon-foundation/maintainers
+/registry/  @gon-foundation/maintainers

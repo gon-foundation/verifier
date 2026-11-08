@@ -17,11 +17,13 @@ what `CANON-SIG-011` uses to decide which signed Records count toward
 
 - **Registry operator:** the Gravit Open Network Foundation. It maintains
   the file in this repository, owned by the GitHub organisation
-  `gravit-open-network-foundation` (GitHub Enterprise).
+  `gon-foundation` (GitHub Free). Until 8 Nov 2026 the repository was in
+  the organisation `gravit-open-network-foundation`; it was transferred
+  with its full history, and the old address redirects here.
 - **Organisation owners:** the shared Foundation account `@GravitOpenNetwork`
   and the President of the Foundation. Owners can change repository
   rules; every such change is visible in the organisation audit log.
-- **Maintainers:** team `@gravit-open-network-foundation/maintainers`, role
+- **Maintainers:** team `@gon-foundation/maintainers`, role
   *Maintain* on this repository, the only code owners. Its members are
   designated by the Foundation.
   Every registry change involves **two different maintainers**: one opens
@@ -29,7 +31,7 @@ what `CANON-SIG-011` uses to decide which signed Records count toward
   author's approval of their own pull request).
 - **One person, one maintainer account.** Only the accounts above are code
   owners. Further accounts of the same people are in team
-  `@gravit-open-network-foundation/contributors` with role *Triage*: they
+  `@gon-foundation/contributors` with role *Triage*: they
   can manage issues and pull requests but cannot push or merge.
   They also cannot open pull requests from branches of this repository, so
   "approving your own pull request from a second account" is largely
