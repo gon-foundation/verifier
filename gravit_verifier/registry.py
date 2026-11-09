@@ -34,6 +34,36 @@ class MalformedRecord(ValueError):
     """The Record cannot be turned into a signing message."""
 
 
+class _Missing:
+    """Marks a required Record member that was absent in the input JSON."""
+
+    def __repr__(self) -> str:
+        return "MISSING"
+
+
+MISSING = _Missing()
+RECORD_TEXT_FIELDS = ("record_id", "verifier_id", "timestamp", "provenance", "integrity_hash", "key_id", "signature")
+
+
+def record_is_well_formed(record: Any) -> bool:
+    """A Record is well formed when every text member is a string, theta is a
+    finite JSON number (not a boolean) and result is true, false or null.
+    A malformed Record is excluded with reason "malformed" before any other
+    check; it never counts and never makes the request fail."""
+    if any(not isinstance(getattr(record, f, MISSING), str) for f in RECORD_TEXT_FIELDS):
+        return False
+    theta = getattr(record, "theta", MISSING)
+    if isinstance(theta, bool) or not isinstance(theta, (int, float)) or not math.isfinite(theta):
+        return False
+    result = getattr(record, "result", MISSING)
+    return result is True or result is False or result is None
+
+
+def excluded_entry(record: Any, reason: str) -> Dict[str, Any]:
+    rid = getattr(record, "record_id", MISSING)
+    return {"record_id": rid if isinstance(rid, str) else None, "reason": reason}
+
+
 @dataclass(frozen=True)
 class RegisteredKey:
     key_id: str
@@ -274,11 +304,11 @@ def screen_evidence(
     admissible: List[Tuple[Any, str]] = []
     excluded: List[Dict[str, str]] = []
     for e in evidence:
-        reason = _exclusion_reason(registry, artifact_id, e)
+        reason = "malformed" if not record_is_well_formed(e) else _exclusion_reason(registry, artifact_id, e)
         if reason is None:
             admissible.append((e, registry.keys[e.key_id].operator))
         else:
-            excluded.append({"record_id": e.record_id, "reason": reason})
+            excluded.append(excluded_entry(e, reason))
     return admissible, excluded
 
 

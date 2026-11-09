@@ -76,11 +76,32 @@ pub struct Evidence {
     pub integrity_hash: String,
     pub key_id: String,
     pub signature: String,
+    /// Every text member a string, theta a finite number, result true/false/null,
+    /// no required member absent. Mirrors `record_is_well_formed` in registry.py.
+    pub well_formed: bool,
+    /// record_id as reported in a DecisionRecord: the string, or null.
+    pub reported_id: Value,
 }
 
 impl Evidence {
     pub fn from_value(v: &Value) -> Evidence {
         let s = |k: &str| v[k].as_str().unwrap_or("").to_string();
+        let text_ok = |k: &str, required: bool| match v.get(k) {
+            Some(Value::String(_)) => true,
+            None => !required,
+            _ => false,
+        };
+        let theta_ok = v.get("theta").map_or(false, |t| t.is_number() && t.as_f64().map_or(false, |x| x.is_finite()));
+        let result_ok = matches!(v.get("result"), None | Some(Value::Null) | Some(Value::Bool(_)));
+        let well_formed = v.is_object()
+            && ["record_id", "verifier_id", "timestamp", "provenance", "integrity_hash"].iter().all(|k| text_ok(k, true))
+            && ["key_id", "signature"].iter().all(|k| text_ok(k, false))
+            && theta_ok
+            && result_ok;
+        let reported_id = match v.get("record_id") {
+            Some(Value::String(x)) => Value::String(x.clone()),
+            _ => Value::Null,
+        };
         Evidence {
             record_id: s("record_id"),
             theta: v["theta"].as_f64().unwrap_or(0.0),
@@ -92,6 +113,8 @@ impl Evidence {
             integrity_hash: s("integrity_hash"),
             key_id: s("key_id"),
             signature: s("signature"),
+            well_formed,
+            reported_id,
         }
     }
 }
@@ -331,17 +354,13 @@ struct Screening<'a> {
 fn screen<'a>(registry: &'a Registry, artifact_id: &str, evidence: &'a [Evidence]) -> Screening<'a> {
     let mut s = Screening { admissible: Vec::new(), excluded: Vec::new() };
     for e in evidence {
-        match exclusion_reason(registry, artifact_id, e) {
+        let reason = if e.well_formed { exclusion_reason(registry, artifact_id, e) } else { Some("malformed") };
+        match reason {
             None => s.admissible.push((e, registry.keys[&e.key_id].operator.as_str())),
-            Some(reason) => s.excluded.push(json!({ "record_id": e.record_id, "reason": reason })),
+            Some(reason) => s.excluded.push(json!({ "record_id": e.reported_id, "reason": reason })),
         }
     }
     s
-}
-
-/// theta must be a finite JSON number; strings and booleans are never coerced.
-fn theta_is_well_formed(e: &Evidence) -> bool {
-    e.theta_is_number && e.theta.is_finite()
 }
 
 /// The Records every rule counts, and the excluded ones with reasons.
@@ -352,11 +371,11 @@ fn counted_evidence(evidence: &[Evidence], screening: Option<&Screening>) -> (Ve
     match screening {
         Some(s) => (s.admissible.iter().map(|(e, _)| (*e).clone()).collect(), s.excluded.clone()),
         None => (
-            evidence.iter().filter(|e| theta_is_well_formed(e)).cloned().collect(),
+            evidence.iter().filter(|e| e.well_formed).cloned().collect(),
             evidence
                 .iter()
-                .filter(|e| !theta_is_well_formed(e))
-                .map(|e| json!({ "record_id": e.record_id, "reason": "malformed" }))
+                .filter(|e| !e.well_formed)
+                .map(|e| json!({ "record_id": e.reported_id, "reason": "malformed" }))
                 .collect(),
         ),
     }
@@ -750,7 +769,7 @@ pub fn verify(
         let is_win = if winning.as_deref() == Some(id.as_str()) { "True" } else { "False" };
         for ev in evidence {
             reverse_trace.push(json!({
-                "evidence_id": ev.record_id,
+                "evidence_id": ev.reported_id,
                 "binding_id": id,
                 "canon_reference": cref,
                 "policy_obligation": obligation,
@@ -776,7 +795,7 @@ pub fn verify(
         reasons.join("; ")
     };
     let requirement_ids: Vec<String> = all.iter().map(|b| rid(b)).collect();
-    let evidence_ids: Vec<String> = evidence.iter().map(|e| e.record_id.clone()).collect();
+    let evidence_ids: Vec<Value> = evidence.iter().map(|e| e.reported_id.clone()).collect();
     let final_state: Option<&str> = achieved.map(|s| s.name());
 
     let mut record = json!({

@@ -31,20 +31,7 @@ def load_artifact(path: Path) -> VerificationRequest:
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    evidence = [
-        EvidenceRecord(
-            record_id=e["record_id"],
-            theta=e["theta"],
-            result=e.get("result"),
-            verifier_id=e["verifier_id"],
-            timestamp=e["timestamp"],
-            provenance=e["provenance"],
-            integrity_hash=e["integrity_hash"],
-            key_id=e.get("key_id", ""),
-            signature=e.get("signature", ""),
-        )
-        for e in data.get("evidence", [])
-    ]
+    evidence = [EvidenceRecord.from_json(e) for e in data.get("evidence", [])]
 
     claimed = data.get("claimed_state")
     claimed_state = EpistemicState(claimed) if claimed else None
