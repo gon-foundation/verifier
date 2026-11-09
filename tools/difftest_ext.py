@@ -176,7 +176,7 @@ def make_case():
 
 def py_run(v):
     req = VerificationRequest(v["name"], EpistemicState(v["claimed_state"]) if v["claimed_state"] else None,
-                              [EvidenceRecord(**e) for e in v["evidence"]], v["context"])
+                              [EvidenceRecord.from_json(e) for e in v["evidence"]], v["context"])
     return kernels[v["use_registry"]].verify(req).to_dict()
 
 

@@ -17,7 +17,7 @@ vectors = json.loads((ROOT / "tests/golden/vectors.json").read_text(encoding="ut
 bad = 0
 for v in vectors:
     req = VerificationRequest(v["name"], EpistemicState(v["claimed_state"]) if v["claimed_state"] else None,
-                              [EvidenceRecord(**e) for e in v["evidence"]], v["context"])
+                              [EvidenceRecord.from_json(e) for e in v["evidence"]], v["context"])
     got = kernels[v["use_registry"]].verify(req).to_dict()
     ok = got == v["expected"]
     bad += (not ok)

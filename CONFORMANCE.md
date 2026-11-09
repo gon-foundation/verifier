@@ -9,6 +9,7 @@ Seventh pass (v0.7.0, external review fixes): 2026-10-25, macOS, Python 3.9 venv
 Eighth pass (known-limit vectors): 2026-11-02, macOS, Python 3.9 + pytest, stable Rust; 49 passed + 1 skipped pytest, 56/56 golden vectors in Python and Rust.
 Ninth pass (differential run, coverage vectors): 2026-11-05, Debian 12 server (2 vCPU, 4 GB), Python 3.11.2 with `pip install -e .`, rustc 1.99.1; 50/50 pytest, 56/56 golden vectors in Python and Rust, then 1,000,000 mutated inputs through both kernels with no difference; 4 vectors added for outcome classes the suite never reached (60/60 in Python and Rust, macOS, same day).
 Tenth pass (differential run at scale): 2026-11-06 to 2026-11-07, same Debian 12 server, code as merged in PR #6; 100,000,000 mutated inputs through both kernels with no difference; per-seed reports in `reports/difftest-2026-11-07/`, one seed re-run on macOS with the same counts.
+Eleventh pass (extended differential test): 2026-11-09, macOS, Python 3.12 + stable Rust; `tools/difftest_ext.py` found that the two kernels decided differently on Records with members of the wrong JSON type or with a required member missing (1,089 of 5,000 cases, seed 1). Rule added to both kernels: such a Record is excluded with reason `malformed` and never counts; unknown members are ignored. After the change 5,000 of 5,000 identical, and 40,000 of 40,000 on seeds 2 to 5; 53/53 pytest, 60/60 golden vectors in Python and Rust unchanged.
 CI (`.github/workflows/ci.yml`) repeats these checks on Python 3.10–3.12 and stable Rust.
 
 ## 1. Verified by execution

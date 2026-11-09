@@ -51,7 +51,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
-from .registry import VerifierRegistry, screen_evidence
+from .registry import MISSING, VerifierRegistry, excluded_entry, record_is_well_formed, screen_evidence
 
 
 # ---------------------------------------------------------------------------
@@ -118,6 +118,19 @@ class EvidenceRecord:
     integrity_hash: str  # expected: SHA3-256
     key_id: str = ""     # registry key that signed this Record (CANON-SIG-011)
     signature: str = ""  # base64 Ed25519 signature over registry.signing_message()
+
+    @classmethod
+    def from_json(cls, data: Any) -> "EvidenceRecord":
+        """Build a Record from parsed JSON without coercion. A required member
+        that is absent becomes MISSING, so the Record is malformed and is
+        excluded; unknown members are ignored (they are not signed)."""
+        if not isinstance(data, dict):
+            data = {}
+        get = lambda k: data[k] if k in data else MISSING
+        return cls(record_id=get("record_id"), theta=get("theta"), result=data.get("result"),
+                   verifier_id=get("verifier_id"), timestamp=get("timestamp"), provenance=get("provenance"),
+                   integrity_hash=get("integrity_hash"), key_id=data.get("key_id", ""),
+                   signature=data.get("signature", ""))
 
 
 @dataclass
@@ -231,6 +244,12 @@ def _jcs_number(x: Any) -> str:
     return sign + mantissa + "e" + ("+" if e > 0 else "-") + str(abs(e))
 
 
+def _reported_id(record: Any) -> Optional[str]:
+    """record_id as reported in a DecisionRecord: null unless it is a string."""
+    rid = getattr(record, "record_id", None)
+    return rid if isinstance(rid, str) else None
+
+
 def theta_is_well_formed(theta: Any) -> bool:
     """theta must be a finite JSON number; strings and booleans are never coerced."""
     return not isinstance(theta, bool) and isinstance(theta, (int, float)) and math.isfinite(theta)
@@ -245,9 +264,8 @@ def counted_evidence(
     without one, every Record with a well-formed theta counts."""
     if screening is not None:
         return [e for e, _ in screening[0]], screening[1]
-    counted = [e for e in evidence if theta_is_well_formed(e.theta)]
-    excluded = [{"record_id": e.record_id, "reason": "malformed"}
-                for e in evidence if not theta_is_well_formed(e.theta)]
+    counted = [e for e in evidence if record_is_well_formed(e)]
+    excluded = [excluded_entry(e, "malformed") for e in evidence if not record_is_well_formed(e)]
     return counted, excluded
 
 
@@ -661,7 +679,7 @@ class DecisionComposer:
             requirement_ids=[b["requirement_id"] for b in all_bindings],
             final_epistemic_state=achieved_state,
             status=status,
-            evidence_ids=[e.record_id for e in request.evidence],
+            evidence_ids=[_reported_id(e) for e in request.evidence],
             convergence_metrics=metrics,
             canon_trace=[b["canonical_reference"][0] for b in all_bindings if b.get("canonical_reference")],
             reverse_trace=reverse_trace,
@@ -688,7 +706,7 @@ class DecisionComposer:
             for ev in request.evidence:
                 trace.append(
                     {
-                        "evidence_id": ev.record_id,
+                        "evidence_id": _reported_id(ev),
                         "binding_id": rid,
                         "canon_reference": (b.get("canonical_reference") or ["unknown"])[0],
                         "policy_obligation": (description[:120] + "...") if description else "",
