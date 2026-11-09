@@ -16,8 +16,10 @@ untested, each case drawn from one class (weights below):
           URL-safe alphabet or with whitespace
   base    the mutations of difftest.py, as a control
 
-usage: python difftest_ext.py <repo> <n> <seed> <outdir>
-Deterministic for a given seed. Output files and outcome kinds as in
+usage: python difftest_ext.py <repo> <n> <seed> <outdir> [weights]
+weights is optional, e.g. types=30,shape=10,large=1,sig=25,base=25 (the
+default is the line CLASSES below). Deterministic for a given seed and weights.
+The weights used are written to report.json. Output files and outcome kinds as in
 difftest.py, plus "by_class" in report.json. A case where both sides reject the
 input (Python exception and Rust panic) is counted as "both_reject"; it is an
 agreement, but it is listed apart from identical DecisionRecords.
@@ -51,6 +53,10 @@ EDGE = [0.0, 1.0, 0.7, 0.3, 0.6999999999999999, 0.7000000000000001, 0.3000000000
 L = 2**252 + 27742317777372353535851937790883648493  # order of the Ed25519 base point
 
 CLASSES = [("types", 30), ("shape", 10), ("large", 10), ("sig", 25), ("base", 25)]
+if len(sys.argv) > 5:
+    W = dict((k, int(x)) for k, x in (p.split("=") for p in sys.argv[5].split(",")))
+    assert set(W) == {c for c, _ in CLASSES} and all(x >= 0 for x in W.values()) and sum(W.values()) > 0, "weights"
+    CLASSES = [(c, W[c]) for c, _ in CLASSES]
 rng = random.Random(SEED)
 
 
@@ -223,7 +229,7 @@ for i, (cls, c, p, r) in enumerate(zip(classes, cases, py_out, rs_out)):
     by_class.setdefault(cls, {}); by_class[cls][k] = by_class[cls].get(k, 0) + 1
     if k not in ("identical", "both_reject"):
         mism.append({"i": i, "class": cls, "kind": k, "case": c, "python": p, "rust": r})
-report = {"seed": SEED, "cases": N, "outcomes": kinds, "by_class": by_class, "identical_by_state_status": states,
+report = {"seed": SEED, "cases": N, "weights": dict(CLASSES), "outcomes": kinds, "by_class": by_class, "identical_by_state_status": states,
           "python_seconds": round(t_py, 2), "rust_seconds": round(t_rs, 2)}
 (OUT / "report.json").write_text(json.dumps(report, indent=1, sort_keys=True), encoding="utf-8")
 (OUT / "mismatches.json").write_text(json.dumps(mism[:500], indent=1, ensure_ascii=False, sort_keys=True), encoding="utf-8")
