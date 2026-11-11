@@ -93,6 +93,8 @@ python tools/difftest.py . 10000 1001 /tmp/difftest   # repo, cases, seed, outpu
 On 5 Nov 2026, seeds 1001 to 1100 (1,000,000 cases) gave 1,000,000 identical records; details and limits in `CONFORMANCE.md`.
 On 6 to 7 Nov 2026, seeds 2001 to 12000 (100,000,000 cases) gave 100,000,000 identical records; per-seed reports and how to check them in `reports/difftest-2026-11-07/`.
 
+On 9 to 10 Nov 2026, an extended run with `tools/difftest_ext.py` (other JSON types and extreme values, missing or unknown fields, 50 to 400 Records, adversarial Ed25519 signatures; seeds 20001 to 30000, 100,000,000 cases) also gave 100,000,000 identical records; details in `reports/difftest-ext-2026-11-10/`.
+
 ## CLI
 
 ```bash
