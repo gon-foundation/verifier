@@ -1,0 +1,57 @@
+{
+ "reference_checker": "https://github.com/diggertydog/verdict-record-test-vectors vrcheck.py at 7e08e71114c50dadfeb61c2f8467064dae4ef704",
+ "results": {
+  "gn01-result-not-reproduced": {
+   "state": "refused",
+   "steps": {
+    "1": "PASS",
+    "2": "PASS",
+    "3": "FAIL"
+   },
+   "summary": "state refused; step 1 PASS; step 2 PASS; step 3 FAIL",
+   "matches_expected": true
+  },
+  "gn02-non-bmp-name-utf8": {
+   "state": "refused",
+   "steps": null,
+   "summary": "state refused; no step ran; refused by Section 2.1",
+   "matches_expected": true
+  },
+  "gn03-non-bmp-name-escaped": {
+   "state": "refused",
+   "steps": null,
+   "summary": "state refused; no step ran; refused by Section 2.1",
+   "matches_expected": true
+  },
+  "gv01-success": {
+   "state": "released",
+   "steps": {
+    "1": "PASS",
+    "2": "PASS",
+    "3": "PASS"
+   },
+   "summary": "state released; step 1 PASS; step 2 PASS; step 3 PASS",
+   "matches_expected": true
+  },
+  "gv02-rejected": {
+   "state": "released",
+   "steps": {
+    "1": "PASS",
+    "2": "PASS",
+    "3": "PASS"
+   },
+   "summary": "state released; step 1 PASS; step 2 PASS; step 3 PASS",
+   "matches_expected": true
+  },
+  "gv03-degraded": {
+   "state": "released",
+   "steps": {
+    "1": "PASS",
+    "2": "PASS",
+    "3": "PASS"
+   },
+   "summary": "state released; step 1 PASS; step 2 PASS; step 3 PASS",
+   "matches_expected": true
+  }
+ }
+}
