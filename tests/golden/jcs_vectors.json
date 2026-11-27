@@ -1,0 +1,26 @@
+{
+ "description": "Canonical JSON (RFC 8785) with non-ASCII member names. The expected text follows RFC 8785 Section 3.2.3: members sorted by UTF-16 code units. decision_id is computed over this form, so both implementations must produce these bytes exactly.",
+ "vectors": [
+  {
+   "name": "rfc8785-3.2.3-sorting",
+   "source": "RFC 8785, Section 3.2.3: the sorting example, expected order as printed in the RFC",
+   "input": "{\"\\u20ac\":\"Euro Sign\",\"\\r\":\"Carriage Return\",\"\\ufb33\":\"Hebrew Letter Dalet With Dagesh\",\"1\":\"One\",\"\\ud83d\\ude00\":\"Emoji: Grinning Face\",\"\\u0080\":\"Control\",\"\\u00f6\":\"Latin Small Letter O With Diaeresis\"}",
+   "expected": "{\"\\r\":\"Carriage Return\",\"1\":\"One\",\"\":\"Control\",\"ö\":\"Latin Small Letter O With Diaeresis\",\"€\":\"Euro Sign\",\"😀\":\"Emoji: Grinning Face\",\"דּ\":\"Hebrew Letter Dalet With Dagesh\"}",
+   "expected_sha3_256": "6860181ff98a702b34e9c98dc577fbfa6a96f400bd297d8faf35459602c2a09c"
+  },
+  {
+   "name": "utf16-vs-codepoint",
+   "source": "U+FF61 and U+1D11E: code point order puts U+FF61 first, UTF-16 code unit order (RFC 8785) puts U+1D11E (D834 DD1E) first",
+   "input": "{\"\\uff61\":1,\"\\ud834\\udd1e\":2}",
+   "expected": "{\"𝄞\":2,\"｡\":1}",
+   "expected_sha3_256": "62fbdcd8451b229643b3b0f214348a2b92f7ebc4e3c6b21018acb72c18e9bd79"
+  },
+  {
+   "name": "nested-non-ascii",
+   "source": "the same rule at depth 2, next to ASCII names",
+   "input": "{\"b\":{\"\\uff61\":true,\"\\ud834\\udd1e\":false,\"a\":null},\"a\":[{\"\\u00f6\":0,\"o\":0}]}",
+   "expected": "{\"a\":[{\"o\":0,\"ö\":0}],\"b\":{\"a\":null,\"𝄞\":false,\"｡\":true}}",
+   "expected_sha3_256": "d2567eb6c11d675212864420362e307518618e610268abd8f1574d554fa06352"
+  }
+ ]
+}
