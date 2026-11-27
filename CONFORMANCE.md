@@ -18,6 +18,7 @@ CI (`.github/workflows/ci.yml`) repeats these checks on Python 3.10–3.12 and s
 |---|---|---|
 | 8 Bindings load; 3 `state_gate` + 5 `constraint` | ran loader + tests | pass |
 | Existing test suite, incl. JSON-Schema validation of all Bindings | `pytest` with `jsonschema` installed (second pass) | 34/34 pass (fifth pass) |
+Twelfth pass (canonical JSON, non-ASCII member names): 2026-11-27, macOS, Python 3.12 venv + pytest, stable Rust; 3 shared vectors in `tests/golden/jcs_vectors.json` (the sorting example of RFC 8785 Section 3.2.3, U+FF61 against U+1D11E, the same at depth 2), checked by `tests/test_jcs.py` and `rust/tests/jcs.rs`: 3/3 in both. Members sort by UTF-16 code units in both kernels, as RFC 8785 requires; no code change. 55 passed + 1 skipped pytest. Prompted by a measurement on the SCITT list (25 Nov 2026).
 | Freshness Bound policy: boundary age passes, 1 s too old / 1 s in the future / wrong format / impossible date / incomplete policy all demote; leap day handled | 7 golden vectors `fresh_age_equals_bound_passes` … `freshness_policy_incomplete_demotes`; Python parser cross-checked against `datetime` on 200,000 random timestamps (0 mismatches); Rust parser tested on boundary values | as claimed |
 | `decision_id` reproducible and identical in Python and Rust | golden vectors now include `decision_id`; all 60 distinct ids reproduced by both | as claimed |
 | Anti-laundering: weak aggregation claiming *Verified Fact* → *Probabilistic Assessment*, `DEGRADED` | CLI on `examples/artifact_weak_aggregation.json` | as claimed |
