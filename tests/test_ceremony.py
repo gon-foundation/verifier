@@ -62,3 +62,27 @@ def test_golden_registry_has_three_of_five(capsys):
 
 def test_selftest_passes():
     assert ceremony.main(["selftest"]) == 0
+
+
+def test_fallback_keygen_and_sign_give_a_proof_that_verify_accepts(tmp_path, capsys):
+    """Fallback path (root-key-custody.md §4, step 1): key made and used on the holder's offline computer."""
+    pw = b"correct horse battery staple"
+    key, pub, chal, sig = (str(tmp_path / n) for n in ("root-key.pem", "pub.pem", "challenge.bin", "sig.bin"))
+    ceremony.keygen_files(key, pub, pw)
+    assert b"ENCRYPTED PRIVATE KEY" in Path(key).read_bytes()
+    assert ceremony.main(["challenge", *ARGS, "--out", chal]) == 0
+    assert len(ceremony.sign_file(key, pw, chal, sig)) == 64
+    assert ceremony.main(["verify", *ARGS, "--public-key", pub, "--signature", sig]) == 0
+    assert "OK: plain Ed25519 proof verified" in capsys.readouterr().out
+
+
+def test_fallback_refuses_short_passphrase_wrong_passphrase_and_overwrite(tmp_path):
+    key, pub = str(tmp_path / "k.pem"), str(tmp_path / "p.pem")
+    with pytest.raises(ceremony.InputError):
+        ceremony.keygen_files(key, pub, b"short")
+    ceremony.keygen_files(key, pub, b"a long enough passphrase")
+    with pytest.raises(ceremony.InputError):
+        ceremony.keygen_files(key, pub, b"a long enough passphrase")      # never overwrite a key
+    (tmp_path / "m.bin").write_bytes(b"x")
+    with pytest.raises(ValueError):
+        ceremony.sign_file(key, b"the wrong passphrase!!", str(tmp_path / "m.bin"), str(tmp_path / "s.bin"))
