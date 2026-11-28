@@ -3,7 +3,10 @@
 Checks that a device produces the *plain* Ed25519 signatures the kernel
 verifies, and turns a holder's public key + proof into the exact entries for
 registry/trust_root.json and registry/ROOT_KEYS.md. Never handles private
-keys of real holders: signing happens on the holder's own device.
+keys of real holders on the maintainer's side: signing happens on the holder's own device.
+`keygen` and `sign` are the fallback of root-key-custody.md §4, step 1 for a holder whose hardware device
+cannot make plain Ed25519 signatures. The holder runs them on their own offline computer; the
+private key exists only there, encrypted with the holder's passphrase.
 
     python tools/ceremony.py challenge --holder "Jane Example" --date 2026-10-20 --out challenge.bin
     python tools/ceremony.py verify    --holder "Jane Example" --date 2026-10-20 \\
@@ -11,6 +14,8 @@ keys of real holders: signing happens on the holder's own device.
     python tools/ceremony.py registry-message registry/verifiers.json --out to-sign.bin
     python tools/ceremony.py check-registry registry/verifiers.json --trust-root registry/trust_root.json
     python tools/ceremony.py selftest
+    python tools/ceremony.py keygen --out root-key.pem --public pub.pem      # holder, offline computer only
+    python tools/ceremony.py sign --key root-key.pem --in challenge.bin --out sig.bin
 
 Exit code 0 = ok, 1 = check failed, 2 = bad input.
 """
@@ -28,7 +33,8 @@ sys.path.insert(0, str(ROOT))
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.hazmat.primitives.serialization import (
-    Encoding, PublicFormat, load_der_public_key, load_pem_public_key,
+    BestAvailableEncryption, Encoding, PrivateFormat, PublicFormat, load_der_public_key, load_pem_private_key,
+    load_pem_public_key,
 )
 
 from gravit_verifier.registry import (
@@ -165,6 +171,57 @@ def cmd_selftest(a) -> int:
     return 0 if good and not wrong_msg and not hashed else 1
 
 
+MIN_PASSPHRASE = 12
+
+
+def keygen_files(out: str, public: str, passphrase: bytes) -> bytes:
+    """Create an Ed25519 key; write it encrypted (PKCS#8 PEM) and the public key (PEM). Returns the raw public key."""
+    if len(passphrase) < MIN_PASSPHRASE:
+        raise InputError(f"passphrase must have at least {MIN_PASSPHRASE} characters")
+    o = Path(out)
+    if o.exists():
+        raise InputError(f"{out} exists; refusing to overwrite a key")
+    sk = Ed25519PrivateKey.generate()
+    o.write_bytes(sk.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, BestAvailableEncryption(passphrase)))
+    o.chmod(0o600)
+    pub = sk.public_key()
+    Path(public).write_bytes(pub.public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo))
+    return pub.public_bytes(Encoding.Raw, PublicFormat.Raw)
+
+
+def sign_file(key: str, passphrase: bytes, infile: str, outfile: str) -> bytes:
+    """Plain Ed25519 signature over the exact bytes of infile; writes 64 raw bytes. Returns the signature."""
+    sk = load_pem_private_key(Path(key).read_bytes(), password=passphrase)
+    if not isinstance(sk, Ed25519PrivateKey):
+        raise InputError("not an Ed25519 private key")
+    sig = sk.sign(Path(infile).read_bytes())
+    Path(outfile).write_bytes(sig)
+    return sig
+
+
+def _ask_passphrase(confirm: bool) -> bytes:
+    import getpass
+    p = getpass.getpass("Passphrase (at least 12 characters, kept only by you): ").encode("utf-8")
+    if confirm and getpass.getpass("Repeat the passphrase: ").encode("utf-8") != p:
+        raise InputError("the two passphrases differ")
+    return p
+
+
+def cmd_keygen(a) -> int:
+    pk = keygen_files(a.out, a.public, _ask_passphrase(confirm=True))
+    print(f"wrote the encrypted private key to {a.out} (keep it on this computer and on your backup only)")
+    print(f"wrote the public key to {a.public} (send this file)")
+    print(f"key id {key_id_for(pk)}")
+    return 0
+
+
+def cmd_sign(a) -> int:
+    sig = sign_file(a.key, _ask_passphrase(confirm=False), a.infile, a.out)
+    print(f"wrote a 64-byte plain Ed25519 signature to {a.out}")
+    print(f"base64: {base64.b64encode(sig).decode()}")
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -179,10 +236,16 @@ def main(argv=None) -> int:
     k = sub.add_parser("check-registry", help="count valid root signatures in <registry>.sig")
     k.add_argument("registry"); k.add_argument("--trust-root", required=True)
     sub.add_parser("selftest", help="show what a correct device does, with a software key")
+    g = sub.add_parser("keygen", help="fallback: create an encrypted Ed25519 key on the holder's offline computer")
+    g.add_argument("--out", required=True); g.add_argument("--public", required=True)
+    s_ = sub.add_parser("sign", help="fallback: sign the exact bytes of a file with the encrypted key")
+    s_.add_argument("--key", required=True); s_.add_argument("--in", dest="infile", required=True)
+    s_.add_argument("--out", required=True)
     a = ap.parse_args(argv)
     try:
         return {"challenge": cmd_challenge, "verify": cmd_verify, "registry-message": cmd_registry_message,
-                "check-registry": cmd_check_registry, "selftest": cmd_selftest}[a.cmd](a)
+                "check-registry": cmd_check_registry, "selftest": cmd_selftest,
+                "keygen": cmd_keygen, "sign": cmd_sign}[a.cmd](a)
     except (InputError, RegistryError, OSError, ValueError) as e:
         print(f"Error: {e}", file=sys.stderr)
         return 2
